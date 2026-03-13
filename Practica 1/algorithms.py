@@ -6,6 +6,7 @@ import random
 # ----------------------------------------
 
 def greedy_algorithm(
+    funcion_objetivo,
     estaciones_base,
     coordenadas,
     caso_bicis,
@@ -43,7 +44,7 @@ def greedy_algorithm(
     # Evaluación estandarizada
     res = evaluar_ruta(ruta_greedy, caso_bicis, caso_capacidad, coordenadas)
     kms, entropia = res['kms_recorridos'], res['entropia']
-    fobj = kms / entropia if entropia > 0 else float('inf')
+    fobj = funcion_objetivo(kms=kms, entropia=entropia, **kwargs)
 
     # El Greedy tiene un historial plano de 1 solo punto (solo se evalúa 1 vez)
     return {
@@ -57,6 +58,7 @@ def greedy_algorithm(
 # ----------------------------------
 
 def busqueda_aleatoria(
+    funcion_objetivo,
     estaciones_base,
     coordenadas,
     caso_bicis,
@@ -82,7 +84,7 @@ def busqueda_aleatoria(
         evaluaciones += 1 # Se conta la llamada
         
         kms, entropia = res['kms_recorridos'], res['entropia']
-        fobj = kms / entropia if entropia > 0 else float('inf')
+        fobj = funcion_objetivo(kms=kms, entropia=entropia, **kwargs)
         
         if fobj < mejor_fobj:
             mejor_fobj, mejor_ruta, mejor_kms, mejor_entropia = fobj, ruta_actual, kms, entropia
@@ -101,6 +103,7 @@ def busqueda_aleatoria(
 # ---------------------------------------------
 
 def busqueda_local_mejor_vecino(
+    funcion_objetivo,
     estaciones_base,
     coordenadas,
     caso_bicis,
@@ -125,7 +128,7 @@ def busqueda_local_mejor_vecino(
     
     kms_actual = res['kms_recorridos']
     entropia_actual = res['entropia']
-    fobj_actual = kms_actual / entropia_actual if entropia_actual > 0 else float('inf')
+    fobj_actual = funcion_objetivo(kms=kms_actual, entropia=entropia_actual, **kwargs)
     
     # Historial
     n_iteracion = 0
@@ -196,6 +199,7 @@ def busqueda_local_mejor_vecino(
 # ---------------------------------------------
 
 def busqueda_local_primer_mejor(
+    funcion_objetivo,
     estaciones_base,
     coordenadas,
     caso_bicis,
@@ -220,7 +224,7 @@ def busqueda_local_primer_mejor(
     
     kms_actual = res['kms_recorridos']
     entropia_actual = res['entropia']
-    fobj_actual = kms_actual / entropia_actual if entropia_actual > 0 else float('inf')
+    fobj_actual = funcion_objetivo(kms=kms_actual, entropia=entropia_actual, **kwargs)
     
     n_iteracion = 0
     historial = {

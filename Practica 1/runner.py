@@ -1,5 +1,5 @@
 import numpy as np
-from utils import obtener_estaciones_a_visitar, graficar_historiales
+from utils import obtener_estaciones_a_visitar, graficar_historiales, FUNCIONES_OBJETIVO, fobj_ratio
 
 def ejecutar_experimento(
     nombre_algoritmo,
@@ -8,67 +8,89 @@ def ejecutar_experimento(
     casos, semillas, tolerancia,
     coordenadas, evaluar_ruta, **kwargs
     ):
-    """
-    Ejecuta un experimento para un algoritmo dado,
-    evaluando su desempeño en varios casos y semillas.
-    """
+    
     resultados_globales = {}
-    print(f"\n{'='*60}\n EXPERIMENTACIÓN: {nombre_algoritmo.upper()}\n{'='*60}")
+    print(f"\n{'='*110}")
+    print(f" EXPERIMENTACIÓN: {nombre_algoritmo.upper()}")
+    print(f"{'='*110}")
 
     datos_para_graficar = []
+    filas_tabla = []
 
     for nombre_caso, datos in casos.items():
         bicis, capacidad = datos['bicis'], datos['capacidad']
         est_base = obtener_estaciones_a_visitar(bicis, capacidad, tolerancia)
 
-        # Si es determinístico (Greedy), se ejecuta 1 sola vez con semilla None.
-        # Si no, se ejecutan las 5 semillas.
         semillas_a_usar = [None] if is_deterministic else semillas
 
-        mejores_fobj = []
-        evaluaciones_lista = []
-        mejor_res = None
-
-        for sem in semillas_a_usar:
-            res = funcion_algoritmo(
-                estaciones_base=est_base, coordenadas=coordenadas, 
-                caso_bicis=bicis, caso_capacidad=capacidad, 
-                evaluar_ruta=evaluar_ruta, semilla=sem, **kwargs
-            )
-
-            mejores_fobj.append(res['fobj'])
-            evaluaciones_lista.append(res['evaluaciones'])
+        # Variables para rastrear al Mejor absoluto de este caso (usando el Arbitro)
+        mejor_res_absoluto = None
+        evaluaciones_totales_lista = [] # Para la media de evals
+        
+        # Se itera sobre todas las funciones objetivo
+        for f_obj in FUNCIONES_OBJETIVO:
+            mejor_res_fobj = None
+            evals_por_fobj = []
             
-            if mejor_res is None or res['fobj'] < mejor_res['fobj']:
-                mejor_res = res
+            # Para cada función, se itera sobre todas las semillas
+            for sem in semillas_a_usar:
+                res = funcion_algoritmo(
+                    estaciones_base=est_base, coordenadas=coordenadas, 
+                    caso_bicis=bicis, caso_capacidad=capacidad, 
+                    evaluar_ruta=evaluar_ruta, semilla=sem, 
+                    funcion_objetivo=f_obj,
+                    **kwargs
+                )
                 
-        # Calcular estadísticas finales
-        fobj_media, fobj_std = np.mean(mejores_fobj), np.std(mejores_fobj)
+                evals_por_fobj.append(res['evaluaciones'])
+                
+                # Se compara internamente usando el valor bruto que devuelve la función actual
+                if mejor_res_fobj is None or res['fobj'] < mejor_res_fobj['fobj']:
+                    mejor_res_fobj = res
+                    
+            evaluaciones_totales_lista.extend(evals_por_fobj)
+            
+            # Se evalua la mejor ruta de esta F.Obj usando la F.Obj estándar (Ratio) para poder comparar peras con peras
+            score_universal = fobj_ratio(mejor_res_fobj['kms'], mejor_res_fobj['entropia'])
+            mejor_res_fobj['score_universal'] = score_universal
+            mejor_res_fobj['nombre_fobj'] = f_obj.__name__ # Para saber quién ganó
+            
+            if mejor_res_absoluto is None or score_universal < mejor_res_absoluto['score_universal']:
+                mejor_res_absoluto = mejor_res_fobj
 
-        resultados_globales[nombre_caso] = {
-            'Mejor F. Objetivo': mejor_res['fobj'],
-            'Mejor Kms': mejor_res['kms'],
-            'Mejor Entropía': mejor_res['entropia'],
-            'Media F. Obj': fobj_media,
-            'Std F. Obj': fobj_std,
-            'Ev. Medias': np.mean(evaluaciones_lista),
-            'Ev. Mejor': mejor_res['evaluaciones']
-        }
+        # Estadísticas finales
+        ev_media = np.mean(evaluaciones_totales_lista)
+        ev_mejor = mejor_res_absoluto['evaluaciones']
 
-        # Imprimir resultados del caso
-        print(f"\n--- {nombre_caso} ---")
-        print(f" -> Mejor F.Obj: {mejor_res['fobj']:.4f} (Semilla: {mejor_res['semilla']})")
-        print(f" -> Media F.Obj: {fobj_media:.4f} ± {fobj_std:.4f}")
+        resultados_globales[nombre_caso] = mejor_res_absoluto
 
-        # Si no es determinístico, guardamos el historial para graficar después de todos los casos
-        if not is_deterministic and 'historial' in mejor_res:
+        semilla_str = str(mejor_res_absoluto['semilla']) if mejor_res_absoluto['semilla'] is not None else 'N/A'
+        nombre_fobj_corta = mejor_res_absoluto['nombre_fobj'].replace('fobj_', '')[:10]
+        
+        # Fila de la tabla
+        fila = f"| {nombre_caso:<6} | {mejor_res_absoluto['score_universal']:>11.4f} | {mejor_res_absoluto['kms']:>7.2f} | {mejor_res_absoluto['entropia']:>8.4f} | {ev_media:>8.1f} | {ev_mejor:>9} | {semilla_str:>7} | {nombre_fobj_corta:<10} |"
+        filas_tabla.append(fila)
+                
+        if not is_deterministic and 'historial' in mejor_res_absoluto:
+            historial_estandarizado = mejor_res_absoluto['historial']
+            historial_estandarizado['fobj'] = [fobj_ratio(k, e) for k, e in zip(historial_estandarizado['kms'], historial_estandarizado['entropia'])]
+            
             datos_para_graficar.append({
-                'historial': mejor_res['historial'],
+                'historial': historial_estandarizado,
                 'nombre_caso': nombre_caso,
-                'semilla': mejor_res['semilla']
+                'semilla': mejor_res_absoluto['semilla']
             })
+    
+    # Imprimir tabla
+    encabezado = f"| Caso   | Score (Ratio)| Kms     | Entropía | Ev. Media| Ev. Mejor | Semilla | Mejor FObj |"
+    separador = "-" * len(encabezado)
+    
+    print(encabezado)
+    print(separador)
+    for fila in filas_tabla:
+        print(fila)
+    print(separador)
 
-    # Graficar los históricos de las mejores soluciones para cada caso (solo para algoritmos no determinísticos)
     if not is_deterministic and datos_para_graficar:
         graficar_historiales(datos_para_graficar, nombre_algoritmo)
 

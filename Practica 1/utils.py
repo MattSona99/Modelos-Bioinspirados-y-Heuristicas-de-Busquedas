@@ -139,3 +139,27 @@ def graficar_historiales(datos_graficas, algoritmo):
 
     plt.tight_layout()
     plt.show()
+    
+# -------------------
+# Funciones Objetivos
+# -------------------
+
+def fobj_ratio(kms, entropia, **kwargs):
+    """Ratio simple: penaliza fuertemente la baja entropia."""
+    return kms / entropia if entropia > 0 else float('inf')
+
+def fobj_suma_ponderada(kms, entropia, alpha=2.0, **kwargs):
+    """
+    Suma ponderada: combina ambos factores con un peso alpha para la entropía.
+    """
+    return kms - (alpha * entropia)
+
+def fobj_ratio_cuadratico(kms, entropia, **kwargs):
+    """Ratio cuadrático: penaliza aún más la baja entropía."""
+    return kms / (entropia ** 2) if entropia > 0 else float('inf')
+
+def fobj_exponencial(kms, entropia, beta=0.1, **kwargs):
+    """Exponencial decreciente: suaviza la penalización cuando la entropía es muy alta."""
+    return kms * math.exp(-beta * entropia)
+
+FUNCIONES_OBJETIVO = [fobj_ratio, fobj_suma_ponderada, fobj_ratio_cuadratico, fobj_exponencial]
