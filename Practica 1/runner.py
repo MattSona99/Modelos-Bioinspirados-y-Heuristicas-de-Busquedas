@@ -1,12 +1,14 @@
 import numpy as np
-from utils import obtener_estaciones_a_visitar, graficar_historiales, FUNCIONES_OBJETIVO, fobj_ratio
+from utils import obtener_estaciones_a_visitar, graficar_historiales, FUNCIONES_OBJETIVO, fobj_ratio, cargar_coordenadas, evaluar_ruta
+from config import CASOS, SEMILLAS, TOLERANCIA
+
 
 def ejecutar_experimento(
     nombre_algoritmo,
     funcion_algoritmo,
     is_deterministic,
-    casos, semillas, tolerancia,
-    coordenadas, evaluar_ruta, **kwargs
+    casos=CASOS, semillas=SEMILLAS, tolerancia=TOLERANCIA,
+    **kwargs
     ):
     """
     Ejecuta un experimento de prueba para un algoritmo de optimización dado.
@@ -14,6 +16,8 @@ def ejecutar_experimento(
     y presenta los resultados en una tabla resumen, además de graficar los
     historiales de evolución para los casos no determinísticos.
     """
+    # Cargar datos base
+    coordenadas = cargar_coordenadas('coords.json')
     
     resultados_globales = {}
     print(f"\n{'='*93}")
