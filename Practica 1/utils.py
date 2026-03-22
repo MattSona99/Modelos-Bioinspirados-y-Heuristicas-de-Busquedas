@@ -3,6 +3,7 @@ import math
 import random
 import matplotlib.pyplot as plt
 import folium
+from IPython.display import display, HTML
 
 def cargar_coordenadas(ruta_archivio):
     """Carga las coordenadas de las estaciones desde un archivo JSON."""
@@ -167,34 +168,44 @@ def calibrar_mu_phi(ruta_base, fobj_base, coordenadas, caso_bicis, caso_capacida
 
 def generar_greedy_probabilistico(frecuencia, estaciones_base):
     """
-    Construye una solución greedy probabilística basándose en la memoria a largo plazo (matriz de frecuencia).
-    Prioriza las aristas (caminos entre dos estaciones) menos visitadas.
+    Construye una solución greedy probabilística basándose en la memoria a largo plazo.
+    Aplica la "Selección por Ruleta Inversa de Frecuencias" sobre el Top 5 de estaciones.
     """
     ruta_greedy = []
     estaciones_pendientes = list(estaciones_base)
     estacion_actual = 0
     
     while estaciones_pendientes:
-        inversas = []
-        
-        # Calcular las inversas de los valores acumulados
+        # Identificar y ordenar candidatas por frecuencia
+        candidatas_con_freq = []
         for candidata in estaciones_pendientes:
             freq = frecuencia[estacion_actual][candidata]
-            # Si no se ha visitado nunca (freq == 0), se asume una probabilidad altísima (inversa grande)
-            inversa = 1.0 / freq if freq > 0 else 1000.0 
-            inversas.append(inversa)
+            candidatas_con_freq.append((candidata, freq))
             
-        # Normalizar para tener valores entre 0 y 1
-        suma_inversas = sum(inversas)
-        probabilidades = [inv / suma_inversas for inv in inversas]
+        # Ordenar de menor a mayor frecuencia
+        candidatas_con_freq.sort(key=lambda x: x[1]) 
         
+        # Crear la Lista Restringida (Top 5)
+        top_5 = candidatas_con_freq[:5]
+        
+        # Calcular el "Peso Inverso"
+        pesos = []
+        for candidata, freq in top_5:
+            peso = 1.0 / (freq + 1.0) # Fórmula: W_i = 1 / (F_i + 1)
+            pesos.append(peso)
+            
+        # Calcular las probabilidades (La Ruleta)
+        peso_total = sum(pesos)
+        probabilidades = [p / peso_total for p in pesos]
+        
+        # Tirar el dado
         numero = random.random()
-        suma = 0.0
-        estacion_elegida = estaciones_pendientes[-1] # Fallback por seguridad de decimales
+        suma_acumulada = 0.0
+        estacion_elegida = top_5[-1][0] # Fallback por seguridad de decimales
         
-        for i, candidata in enumerate(estaciones_pendientes):
-            suma += probabilidades[i]
-            if numero <= suma:
+        for i, (candidata, _) in enumerate(top_5):
+            suma_acumulada += probabilidades[i]
+            if numero <= suma_acumulada:
                 estacion_elegida = candidata
                 break
                 
@@ -356,6 +367,108 @@ def dibujar_mapa_estado(coordenadas, caso_capacidad, inventario_final):
         ).add_to(mapa)
 
     return mapa
+
+def generar_tabla_global(diccionario_resultados):
+    """
+    Genera una única Tabla Global resumen de Resultados.
+    """
+    html = """
+    <style>
+        .tabla-resultados { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-family: Arial, sans-serif; 
+            margin-top: 15px; 
+            background-color: #ffffff; 
+            color: #000000; 
+        }
+        .tabla-resultados th { 
+            background-color: #e0e0e0; 
+            color: #000000; 
+            font-weight: bold; 
+            text-align: center; 
+            padding: 12px 8px; 
+            border-bottom: 3px solid #222222; 
+            border-top: 3px solid #222222; 
+        }
+        .tabla-resultados td { 
+            padding: 10px 8px; 
+            text-align: center; 
+            border-bottom: 1px solid #bbbbbb; 
+            color: #111111;
+        }
+        .tabla-resultados tr.borde-grueso td { 
+            border-bottom: 3px solid #222222; 
+        }
+        .tabla-resultados td.algo-name { 
+            font-weight: bold; 
+            vertical-align: middle; 
+            border-right: 2px solid #bbbbbb; 
+            background-color: #f5f5f5; 
+            color: #000000;
+        }
+    </style>
+    
+    <h3 style="color: inherit;">Tabla Global Resumen de Resultados</h3>
+    <table class="tabla-resultados">
+        <thead>
+            <tr>
+                <th>Algoritmo</th><th>Caso</th><th>Ev. Medias</th><th>Ev. Mejor</th><th>σ EV</th><th>Mejor Kms</th><th>Mejor Entropía</th><th>F. Objetivo</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
+    orden_algoritmos = ['Greedy Algorithm', 'Búsqueda Aleatoria', 'Búsqueda Local Primer Mejor', 
+                        'Búsqueda Local Mejor Vecino', 'Enfriamiento Simulado', 'Búsqueda Tabú']
+    
+    casos = ['Caso 1', 'Caso 2', 'Caso 3']
+    
+    for nombre_algo in orden_algoritmos:
+        clave_algo = next((k for k in diccionario_resultados.keys() if k.lower().replace('ú', 'u') in nombre_algo.lower().replace('ú', 'u')), None)
+        
+        if clave_algo:
+            casos_presentes = [c for c in casos if c in diccionario_resultados[clave_algo]]
+            n_casos = len(casos_presentes)
+            
+            if n_casos == 0: continue
+            
+            is_greedy = 'greedy' in nombre_algo.lower()
+            nombre_corto = nombre_algo.replace(' Algorithm', '').replace('Búsqueda ', 'B. ').replace('Local ', 'L. ').replace('Enfriamiento', 'Enf.')
+            
+            for i, caso in enumerate(casos_presentes):
+                datos = diccionario_resultados[clave_algo][caso]
+                
+                # Extracción de datos
+                ev_media = datos.get('evaluaciones', 0) if is_greedy else datos.get('ev_media', datos.get('evaluaciones', 0))
+                ev_mejor = datos.get('evaluaciones', 0)
+                sigma_ev = 0.0 if is_greedy else datos.get('sigma_ev', 0.0) 
+                
+                kms = datos['kms']
+                entropia = datos['entropia']
+                fobj_name = datos.get('nombre_fobj', 'N/A').replace('fobj_', '')[:10]
+                fobj_val = datos['fobj']
+                
+                fobj_str = f"{fobj_val:.4f}<br><span style='font-size:0.85em; font-style:italic; color:#555;'>({fobj_name})</span>"
+                
+                clase_fila = "borde-grueso" if i == n_casos - 1 else ""
+                
+                html += f'<tr class="{clase_fila}">'
+                
+                if i == 0:
+                    html += f'<td rowspan="{n_casos}" class="algo-name">{nombre_corto}</td>'
+                    
+                html += f"<td>{caso}</td>"
+                html += f"<td>{ev_media:.1f}</td>"
+                html += f"<td>{ev_mejor}</td>"
+                html += f"<td>{sigma_ev:.2f}</td>"
+                html += f"<td>{kms:.2f}</td>"
+                html += f"<td>{entropia:.4f}</td>"
+                html += f"<td>{fobj_str}</td>"
+                html += "</tr>\n"
+
+    html += "</tbody></table>"
+    display(HTML(html))
 
 # ---------------------------------------------------------------------------------------
 # --------------------------------- Funciones Objetivos ---------------------------------

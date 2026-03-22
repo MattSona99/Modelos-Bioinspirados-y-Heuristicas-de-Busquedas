@@ -84,6 +84,10 @@ def ejecutar_experimento(
         ev_media = np.mean(evaluaciones_totales_lista)
         t_medio = np.mean(tiempos_totales_lista)
         ev_mejor = mejor_res_absoluto['evaluaciones']
+        sigma_ev = np.std(evaluaciones_totales_lista)
+        
+        mejor_res_absoluto['ev_media'] = ev_media
+        mejor_res_absoluto['sigma_ev'] = sigma_ev
 
         resultados_globales[nombre_caso] = mejor_res_absoluto
         
