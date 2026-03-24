@@ -54,6 +54,19 @@ Sigue estos pasos para preparar tu entorno de desarrollo local:
 
 ## 📁 Estructura del Proyecto
 
+La estructura de archivos de la práctica es la siguiente:
+
+```text
+Practica 1/
+├── algorithms.py       # Lógica matemática y algoritmos
+├── config.py           # Variables globales y definición de casos
+├── coords.json         # Base de datos geoespacial (lat/lon)
+├── notebook.ipynb      # Cuaderno interactivo con análisis visual
+├── requirements.txt    # Dependencias de Python
+├── runner.py           # Script principal de ejecución por consola
+└── utils.py            # Librería de funciones auxiliares y gráficos
+```
+
 El código fuente ha sido modularizado para separar la lógica algorítmica, la visualización y la configuración:
 
 * **`algorithms.py`**: Contiene la lógica matemática y estructural de las metaheurísticas exigidas (Búsqueda Aleatoria, Primer Mejor, Mejor Vecino, Enfriamiento Simulado y Búsqueda Tabú).
