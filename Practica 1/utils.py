@@ -191,7 +191,8 @@ def generar_greedy_probabilistico(frecuencia, estaciones_base):
         # Calcular el "Peso Inverso"
         pesos = []
         for candidata, freq in top_5:
-            peso = 1.0 / (freq + 1.0) # Fórmula: W_i = 1 / (F_i + 1)
+            # Fórmula: W_i = 1 / (F_i + 1)
+            peso = 1.0 / (freq + 1.0)
             pesos.append(peso)
             
         # Calcular las probabilidades (La Ruleta)
@@ -280,14 +281,14 @@ def dibujar_mapa_trayecto(coordenadas, movimientos_mapa):
     """
     mapa = folium.Map(location=[43.4647, -3.8044], zoom_start=14)
     
-    # Dibujar todas las estaciones como puntos base pequeños (gris claro) para contexto geográfico
+    # Dibujar todas las estaciones como puntos base pequeños para contexto geográfico
     for i, coords in enumerate(coordenadas):
         folium.CircleMarker(
             location=[coords['lat'], coords['lon']],
             radius=3, color='gray', fill=True, popup=f"Estación {i}"
         ).add_to(mapa)
 
-    # Dibujar el Recorrido del Camión y pintar el "nodo" según la acción en ese instante
+    # Dibujar el Recorrido del Camión y pintar el nodo según la acción en ese instante
     for origen, destino, accion, cantidad in movimientos_mapa:
         origen_idx = int(origen)
         destino_idx = int(destino)
