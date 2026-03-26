@@ -3,12 +3,50 @@ import time
 from utils import obtener_estaciones_a_visitar, graficar_historiales, FUNCIONES_OBJETIVO, fobj_ratio, cargar_coordenadas, evaluar_ruta, dibujar_mapa_estado, dibujar_mapa_trayecto
 from config import CASOS, SEMILLAS, TOLERANCIA
 from IPython.display import display
+from algorithms import (
+    greedy_algorithm,
+    busqueda_aleatoria,
+    busqueda_local_mejor_vecino,
+    busqueda_local_primer_mejor,
+    busqueda_enfriamiento_simulado,
+    busqueda_tabu
+)
 
+REGISTRY = {
+    'greedy': {
+        'nombre_display': 'Greedy Algorithm',
+        'funcion': greedy_algorithm,
+        'is_deterministic': True
+    },
+    'aleatoria': {
+        'nombre_display': 'Búsqueda Aleatoria',
+        'funcion': busqueda_aleatoria,
+        'is_deterministic': False
+    },
+    'local_mejor_vecino': {
+        'nombre_display': 'Búsqueda Local (Mejor Vecino)',
+        'funcion': busqueda_local_mejor_vecino,
+        'is_deterministic': False
+    },
+    'local_primer_mejor': {
+        'nombre_display': 'Búsqueda Local (Primer Mejor)',
+        'funcion': busqueda_local_primer_mejor,
+        'is_deterministic': False
+    },
+    'enfriamiento_simulado': {
+        'nombre_display': 'Enfriamiento Simulado',
+        'funcion': busqueda_enfriamiento_simulado,
+        'is_deterministic': False
+    },
+    'busqueda_tabu': {
+        'nombre_display': 'Búsqueda Tabú',
+        'funcion': busqueda_tabu,
+        'is_deterministic': False
+    }
+}
 
 def ejecutar_experimento(
-    nombre_algoritmo,
-    funcion_algoritmo,
-    is_deterministic,
+    id_algoritmo,
     casos=CASOS, semillas=SEMILLAS, tolerancia=TOLERANCIA,
     **kwargs
     ):
@@ -19,6 +57,14 @@ def ejecutar_experimento(
     historiales de evolución para los casos no determinísticos.
     Genera automáticamente mapas interactivos de la mejor solución por caso.
     """
+    if id_algoritmo not in REGISTRY:
+        raise ValueError(f'Algoritmo "{id_algoritmo}" no reconocido.')
+    
+    info_algo = REGISTRY[id_algoritmo]
+    nombre_algoritmo = info_algo['nombre_display']
+    funcion_algoritmo = info_algo['funcion']
+    is_deterministic = info_algo['is_deterministic']
+    
     # Cargar datos base
     coordenadas = cargar_coordenadas('coords.json')
     
