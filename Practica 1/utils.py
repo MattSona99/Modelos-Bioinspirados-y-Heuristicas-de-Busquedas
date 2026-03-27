@@ -219,7 +219,7 @@ def generar_greedy_probabilistico(frecuencia, estaciones_base):
 def graficar_historiales(datos_graficas, algoritmo):
     """
     Recibe una lista de diccionarios con los historiales de los casos
-    y los dibuja uno al lado del otro, incluyendo los valores finales.
+    y los dibuja uno al lado del otro.
     """
     n_graficas = len(datos_graficas)
     fig, axes = plt.subplots(1, n_graficas, figsize=(16, 5))
@@ -260,25 +260,6 @@ def graficar_historiales(datos_graficas, algoritmo):
                           color=color_kms, linestyle=':', 
                           label='Kms Recorridos', linewidth=2)
         ax2.tick_params(axis='y', labelcolor=color_kms)
-
-        ultima_iter = historial['iteracion'][-1]
-        ultima_ent = historial['entropia'][-1]
-        ultimo_kms = historial['kms'][-1]
-        
-        ax1.set_xlim(left=-2, right=ultima_iter + (ultima_iter * 0.15))
-
-        ax1.annotate(f'{ultima_ent:.2f}', 
-                     xy=(ultima_iter, ultima_ent),
-                     xytext=(8, 0),
-                     textcoords='offset points',
-                     color=color_ent, fontweight='bold', fontsize=11)
-
-        ax2.annotate(f'{ultimo_kms:.2f} Km', 
-                     xy=(ultima_iter, ultimo_kms),
-                     xytext=(8, -10),
-                     textcoords='offset points',
-                     color=color_kms, fontweight='bold', fontsize=11)
-        # ------------------------------------------------------------
 
         ax1.set_title(f'{nombre_caso} (Semilla: {semilla})')
         ax1.grid(True, alpha=0.3)
