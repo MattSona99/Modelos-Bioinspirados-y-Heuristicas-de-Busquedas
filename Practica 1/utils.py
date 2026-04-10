@@ -112,8 +112,8 @@ def calibrar_mu_phi(ruta_base, fobj_base, coordenadas, caso_bicis, caso_capacida
     print(f"Costo inicial Greedy C(Si): {fobj_base:.4f}")
     
     # Valores a probar para mu y phi (entre 0.1 y 0.3)
-    valores_mu = [0.1, 0.15, 0.2, 0.25, 0.3]
-    valores_phi = [0.1, 0.15, 0.2, 0.25, 0.3]
+    valores_mu = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
+    valores_phi = [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 0.99]
     n = len(ruta_base)
     deltas_vecinos = []
     
