@@ -30,7 +30,9 @@ def construir_solucion_grasp(
         candidatos = []
         lat_act, lon_act = coordenadas[estacion_actual]['lat'], coordenadas[estacion_actual]['lon']
 
-        for cand in pendientes:
+        # Iteramos en orden ordenado para que random.seed produzca rutas reproducibles:
+        # el orden de iteración de un set Python no está garantizado entre versiones.
+        for cand in sorted(pendientes):
             lat_cand, lon_cand = coordenadas[cand]['lat'], coordenadas[cand]['lon']
             dist = distancia_manhattan_km(lat_act, lon_act, lat_cand, lon_cand)
             if dist == 0: dist = 0.0001
@@ -170,20 +172,30 @@ def calcular_metricas_caja_negra(resultados_5_ejecuciones, fobj_mejor_conocido):
     print(f"{'='*65}")
     print(f"| {'Algoritmo':<10} | {'Media':<8} | {'Std (σ)':<8} | {'CV (%)':<8} | {'RPD (%)':<8} |")
     print(f"{'-'*65}")
-    
+
+    rpd_negativos = []
     for algoritmo, valores_fobj in resultados_5_ejecuciones.items():
         media = np.mean(valores_fobj)
         desviacion = np.std(valores_fobj)
-        
+
         # 1.1 Coeficiente de Variación (CV) [cite: 82-83]
         cv = (desviacion / media) * 100 if media > 0 else 0
-        
+
         # 1.2 Error Relativo Porcentual (RPD) [cite: 85-87]
         mejor_obtenido = np.min(valores_fobj)
         rpd = ((mejor_obtenido - fobj_mejor_conocido) / fobj_mejor_conocido) * 100
-        
+
+        if rpd < -0.1:
+            rpd_negativos.append((algoritmo, mejor_obtenido, rpd))
+
         print(f"| {algoritmo:<10} | {media:<8.2f} | {desviacion:<8.2f} | {cv:<8.2f} | {rpd:<8.2f} |")
     print(f"{'='*65}")
+
+    if rpd_negativos:
+        print(f"  ℹ️  RPD negativo detectado vs. fobj_mejor_conocido={fobj_mejor_conocido:.4f}:")
+        for algo, best, rpd in rpd_negativos:
+            print(f"     {algo} obtiene {best:.4f} (RPD={rpd:+.2f}%) — la P2 supera el mejor de P1.")
+        print("     Considera actualizar fobj_mejor_conocido al best efectivo de P1 o documentar la mejora.")
 
 
 def graficar_boxplot_caja_negra(resultados_5_ejecuciones, nombre_caso):
@@ -248,6 +260,121 @@ def calcular_tasa_overlap_hamming(rutas, n_posiciones_prefijo=5):
         print("   Buena diversificación. El algoritmo explora diferentes inicios de ruta.")
         
     return porcentaje_overlap
+
+def comparar_grasp_rcl(busqueda_grasp_fn, funcion_objetivo, estaciones_base, coordenadas,
+                       caso_bicis, caso_capacidad, evaluar_ruta, semillas,
+                       rcl_values=(3, 4, 5), n_posiciones_prefijo=4):
+    """
+    Estudio comparativo del impacto del tamaño de la RCL sobre GRASP (PDF §2.1).
+    Para cada valor de RCL ejecuta GRASP en las semillas dadas y reporta:
+    Media, σ, CV y Overlap de Hamming. Permite ver cómo aumentar la RCL inyecta
+    diversidad a costa (o no) de calidad media.
+    """
+    print(f"{'='*78}")
+    print(f"| {'RCL':<4} | {'Media':<8} | {'Best':<8} | {'σ':<8} | {'CV (%)':<8} | {'Overlap (%)':<12} |")
+    print(f"{'-'*78}")
+
+    for rcl in rcl_values:
+        scores = []
+        rutas = []
+        for sem in semillas:
+            res = busqueda_grasp_fn(funcion_objetivo, estaciones_base, coordenadas,
+                                    caso_bicis, caso_capacidad, evaluar_ruta, sem,
+                                    tamano_rcl=rcl)
+            scores.append(res['fobj'])
+            rutas.append(res['ruta'])
+
+        media = np.mean(scores)
+        best = np.min(scores)
+        desv = np.std(scores)
+        cv = (desv / media * 100) if media > 0 else 0.0
+
+        # Overlap (mismo cálculo que calcular_tasa_overlap_hamming, sin imprimir)
+        sim, comp = 0, 0
+        for i in range(len(rutas)):
+            for j in range(i + 1, len(rutas)):
+                a, b = rutas[i][:n_posiciones_prefijo], rutas[j][:n_posiciones_prefijo]
+                sim += sum(1 for x, y in zip(a, b) if x == y)
+                comp += n_posiciones_prefijo
+        overlap = (sim / comp * 100) if comp > 0 else 0.0
+
+        print(f"| {rcl:<4} | {media:<8.4f} | {best:<8.4f} | {desv:<8.4f} | {cv:<8.2f} | {overlap:<12.1f} |")
+    print(f"{'='*78}")
+    print("Lectura: RCL=3 (default PDF) tiende a CV bajo y overlap alto (poca diversificación).")
+    print("RCL mayor relaja el determinismo del greedy, aumentando la exploración.")
+
+
+def calcular_profundidad_estancamiento_ils(historiales_ils):
+    """
+    Stagnation Depth para ILS (PDF §2.2): cuántas evaluaciones de Búsqueda Local
+    se gastan en promedio antes de aplicar la siguiente mutación de sublista.
+    Recibe una lista de historiales (uno por semilla).
+    """
+    todas_evals = []
+    for h in historiales_ils:
+        todas_evals.extend(h.get('evals_por_bl', []))
+
+    if not todas_evals:
+        print(">> ILS Stagnation Depth: no hay datos registrados.")
+        return
+
+    media = np.mean(todas_evals)
+    desv = np.std(todas_evals)
+    minimo = np.min(todas_evals)
+    maximo = np.max(todas_evals)
+    n_ciclos = len(todas_evals)
+
+    print(f">> ILS Stagnation Depth (evaluaciones de BL por ciclo, n={n_ciclos}):")
+    print(f"   Media={media:.1f}   σ={desv:.1f}   Min={minimo}   Max={maximo}")
+    if media > 1500:
+        print("   ⚠️ Estancamiento profundo: la BL consume muchas evaluaciones antes de mutar.")
+        print("   El PDF sugiere truncamiento o cortes más rápidos para que ILS perturbe más a menudo.")
+    else:
+        print("   ✓ La BL termina razonablemente rápido, dejando espacio a la mutación.")
+
+
+def calcular_profundidad_estancamiento_vns(historiales_vns, k_max=4):
+    """
+    Stagnation Depth para VNS (PDF §2.2): distribución de mejoras encontradas
+    por nivel de entorno k, para detectar si los entornos pequeños no aportan
+    y el algoritmo se ve obligado a escalar a k_max.
+    """
+    mejoras_acum = {k: 0 for k in range(1, k_max + 1)}
+    intentos_acum = {k: 0 for k in range(1, k_max + 1)}
+
+    for h in historiales_vns:
+        for k, count in h.get('mejoras_por_k', {}).items():
+            mejoras_acum[k] += count
+        for k, count in h.get('intentos_por_k', {}).items():
+            intentos_acum[k] += count
+
+    total_mejoras = sum(mejoras_acum.values())
+    total_intentos = sum(intentos_acum.values())
+
+    print(f">> VNS Stagnation Depth (acumulado en {len(historiales_vns)} ejecuciones):")
+    print(f"   {'k':<4} | {'Intentos':<9} | {'Mejoras':<8} | {'Tasa éxito':<10} | {'% del total mejoras':<20}")
+    print(f"   {'-'*65}")
+    for k in range(1, k_max + 1):
+        intentos = intentos_acum[k]
+        mejoras = mejoras_acum[k]
+        tasa = (mejoras / intentos * 100) if intentos > 0 else 0.0
+        pct_total = (mejoras / total_mejoras * 100) if total_mejoras > 0 else 0.0
+        print(f"   {k:<4} | {intentos:<9} | {mejoras:<8} | {tasa:<9.1f}% | {pct_total:<19.1f}%")
+
+    if total_mejoras == 0:
+        print("   ⚠️ Ninguna mejora registrada por VNS — revisar criterio de aceptación.")
+        return
+
+    pct_grande = mejoras_acum[k_max] / total_mejoras * 100
+    pct_pequenos = (mejoras_acum[1] + mejoras_acum[2]) / total_mejoras * 100
+    if pct_grande > 50:
+        print(f"   ⚠️ {pct_grande:.0f}% de las mejoras vienen del entorno más grande (k={k_max}):")
+        print("   los entornos pequeños rara vez aportan, podría saltarse k=1/k=2 (PDF §2.2).")
+    elif pct_pequenos > 60:
+        print(f"   ✓ Los entornos pequeños (k=1,2) generan el {pct_pequenos:.0f}% de las mejoras: diversificación gradual eficaz.")
+    else:
+        print("   ✓ Distribución equilibrada de mejoras entre entornos: VNS aprovecha toda la jerarquía.")
+
 
 def generar_tabla_global(diccionario_resultados):
     """

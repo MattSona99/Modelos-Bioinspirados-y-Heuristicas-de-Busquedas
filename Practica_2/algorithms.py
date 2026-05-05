@@ -15,22 +15,26 @@ from Practica_2.utils import construir_solucion_grasp, aplicar_busqueda_local_pr
 # ---------------------------------------------
 def busqueda_grasp(
     funcion_objetivo, estaciones_base, coordenadas, caso_bicis, caso_capacidad, evaluar_ruta, semilla,
-    max_iter_grasp=10, **kwargs
+    max_iter_grasp=10, tamano_rcl=3, **kwargs
     ):
     """
     Algoritmo GRASP (Greedy Randomized Adaptive Search Procedure).
     Genera 10 soluciones construidas probabilísticamente y las optimiza
     con el motor común de Búsqueda Local del Primer Mejor.
+
+    tamano_rcl=3 es el valor pedido por el PDF; valores mayores aumentan la
+    diversificación a costa de potencial calidad (ver estudio comparativo).
     """
     random.seed(semilla)
     evaluaciones_totales = 0
-    
+
     historial = {'evaluaciones': [], 'fobj_actual': [], 'fobj': [], 'kms': [], 'entropia': []}
     record_absoluto = {'ruta': None, 'fobj': float('inf'), 'kms': 0, 'entropia': 0}
-    
+
     for iter_grasp in range(1, max_iter_grasp + 1):
         # Fase de construcción Greedy Probabilística
-        ruta_actual = construir_solucion_grasp(estaciones_base, coordenadas, caso_bicis, caso_capacidad)
+        ruta_actual = construir_solucion_grasp(estaciones_base, coordenadas, caso_bicis, caso_capacidad,
+                                               tamano_rcl=tamano_rcl)
         res_actual = evaluar_ruta(ruta_actual, caso_bicis, caso_capacidad, coordenadas)
         evaluaciones_totales += 1
         
@@ -79,7 +83,10 @@ def busqueda_ils(
     random.seed(semilla)
     evaluaciones_totales = 0
 
-    historial = {'evaluaciones': [], 'fobj_actual': [], 'fobj': [], 'kms': [], 'entropia': []}
+    # 'evals_por_bl' registra la profundidad de estancamiento (PDF §2.2):
+    # cuántas evaluaciones consume cada ciclo de Búsqueda Local antes de la siguiente mutación.
+    historial = {'evaluaciones': [], 'fobj_actual': [], 'fobj': [], 'kms': [], 'entropia': [],
+                 'evals_por_bl': []}
     record_absoluto = {'ruta': None, 'fobj': float('inf'), 'kms': 0, 'entropia': 0}
 
     # 1. Solución Inicial Aleatoria
@@ -103,11 +110,13 @@ def busqueda_ils(
     historial['entropia'].append(record_absoluto['entropia'])
 
     # 2. Primera Búsqueda Local (Primer Mejor)
+    evals_pre_bl = evaluaciones_totales
     _, _, _, evaluaciones_totales = aplicar_busqueda_local_primer_mejor(
         ruta_actual, fobj_actual, res_actual,
         evaluar_ruta, funcion_objetivo, caso_bicis, caso_capacidad, coordenadas,
         evaluaciones_totales, historial, record_absoluto, generar_vecino_swap, **kwargs
     )
+    historial['evals_por_bl'].append(evaluaciones_totales - evals_pre_bl)
 
     # 3. Bucle Iterativo de Perturbación (ILS)
     for iter_ils in range(max_iter_ils):
@@ -128,18 +137,20 @@ def busqueda_ils(
         historial['entropia'].append(record_absoluto['entropia'])
 
         # 4. Búsqueda Local sobre la solución mutada
+        evals_pre_bl = evaluaciones_totales
         _, _, _, evaluaciones_totales = aplicar_busqueda_local_primer_mejor(
             ruta_mutada, fobj_mutada, res_mutada,
             evaluar_ruta, funcion_objetivo, caso_bicis, caso_capacidad, coordenadas,
             evaluaciones_totales, historial, record_absoluto, generar_vecino_swap, **kwargs
         )
+        historial['evals_por_bl'].append(evaluaciones_totales - evals_pre_bl)
 
     return {
         'ruta': record_absoluto['ruta'], 'fobj': record_absoluto['fobj'],
         'kms': record_absoluto['kms'], 'entropia': record_absoluto['entropia'],
         'historial': historial, 'evaluaciones': evaluaciones_totales, 'semilla': semilla
     }
-    
+
 # ---------------------------------------------
 # 3. Algoritmo VNS (Variable Neighborhood Search)
 # ---------------------------------------------
@@ -152,16 +163,20 @@ def busqueda_vns(
     cuando se estanca, y vuelve al entorno pequeño cuando mejora.
     """
     random.seed(semilla)
-    evaluazioni_totali = 0
-    
+    evaluaciones_totales = 0
+
     # 1. Inicialización [cite: 42]
-    historial = {'evaluaciones': [], 'fobj_actual': [], 'fobj': [], 'kms': [], 'entropia': []}
+    # 'mejoras_por_k' / 'intentos_por_k' registran la profundidad de estancamiento por entorno
+    # (PDF §2.2): cuántas veces cada k logra mejorar vs. cuántas veces se ha intentado.
+    historial = {'evaluaciones': [], 'fobj_actual': [], 'fobj': [], 'kms': [], 'entropia': [],
+                 'mejoras_por_k': {kk: 0 for kk in range(1, k_max + 1)},
+                 'intentos_por_k': {kk: 0 for kk in range(1, k_max + 1)}}
     record_absoluto = {'ruta': None, 'fobj': float('inf'), 'kms': 0, 'entropia': 0}
     
     # Generar solución actual aleatoria
     ruta_actual = generar_solucion_inicial_aleatoria(estaciones_base)
     res_actual = evaluar_ruta(ruta_actual, caso_bicis, caso_capacidad, coordenadas)
-    evaluazioni_totali += 1
+    evaluaciones_totales += 1
     
     fobj_actual = funcion_objetivo(kms=res_actual['kms_recorridos'], entropia=res_actual['entropia'], **kwargs)
     
@@ -176,7 +191,7 @@ def busqueda_vns(
     n = len(ruta_actual)
 
     # Registrar punto inicial
-    historial['evaluaciones'].append(evaluazioni_totali)
+    historial['evaluaciones'].append(evaluaciones_totales)
     historial['fobj_actual'].append(fobj_actual)
     historial['fobj'].append(record_absoluto['fobj'])
     historial['kms'].append(record_absoluto['kms'])
@@ -199,11 +214,11 @@ def busqueda_vns(
         # Usamos el operador de sublista aleatoria cíclica [cite: 49]
         ruta_vecina = mutacion_fuerte_sublista(ruta_actual, tamaño=s)
         res_vecina = evaluar_ruta(ruta_vecina, caso_bicis, caso_capacidad, coordenadas)
-        evaluazioni_totali += 1
+        evaluaciones_totales += 1
         fobj_vecina = funcion_objetivo(kms=res_vecina['kms_recorridos'], entropia=res_vecina['entropia'], **kwargs)
 
         # Registrar PICO de Exploración (Cambio de entorno)
-        historial['evaluaciones'].append(evaluazioni_totali)
+        historial['evaluaciones'].append(evaluaciones_totales)
         historial['fobj_actual'].append(fobj_vecina)
         historial['fobj'].append(record_absoluto['fobj'])
         historial['kms'].append(record_absoluto['kms'])
@@ -211,16 +226,18 @@ def busqueda_vns(
 
         # 4. Búsqueda Local (Primer Mejor) [cite: 46]
         # Incrementamos bl (contador de búsquedas locales realizadas)
-        ruta_optimizada, fobj_optimizado, res_optimizado, evaluazioni_totali = aplicar_busqueda_local_primer_mejor(
+        ruta_optimizada, fobj_optimizado, res_optimizado, evaluaciones_totales = aplicar_busqueda_local_primer_mejor(
             ruta_vecina, fobj_vecina, res_vecina,
             evaluar_ruta, funcion_objetivo, caso_bicis, caso_capacidad, coordenadas,
-            evaluazioni_totali, historial, record_absoluto, generar_vecino_swap, **kwargs
+            evaluaciones_totales, historial, record_absoluto, generar_vecino_swap, **kwargs
         )
         bl += 1
+        historial['intentos_por_k'][k] += 1
 
         # 5. Criterio de Aceptación y Cambio de Entorno [cite: 47]
         if fobj_optimizado < fobj_actual:
             # Mejora encontrada: actualizamos base y reseteamos entorno a k=1
+            historial['mejoras_por_k'][k] += 1
             ruta_actual = list(ruta_optimizada)
             fobj_actual = fobj_optimizado
             res_actual = res_optimizado.copy()
@@ -235,6 +252,6 @@ def busqueda_vns(
         'kms': record_absoluto['kms'], 
         'entropia': record_absoluto['entropia'],
         'historial': historial, 
-        'evaluaciones': evaluazioni_totali, 
+        'evaluaciones': evaluaciones_totales, 
         'semilla': semilla
     }

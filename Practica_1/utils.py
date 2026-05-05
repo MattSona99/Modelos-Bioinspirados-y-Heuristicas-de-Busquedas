@@ -531,13 +531,15 @@ def fobj_exponencial_priorizada(kms, entropia, e_max=16.0, beta=2.0, **kwargs):
 
 def fobj_insatisfaccion_relativa(kms, entropia, e_max=16.0, **kwargs):
     """
-    Exponencial de Insatisfacción Relativa.
-    Eleva los Kms a una potencia mayor cuanto peor sea el balanceo.
+    Exponencial de Insatisfacción Relativa (PDF Anexo §2).
+    Eleva los Kms a una potencia (1 + déficit_relativo): si la entropía es
+    perfecta (déficit=0) se evalúa kms^1; si es pésima (déficit=1) se evalúa kms^2.
     """
     if kms <= 0:
         return 0.0
-    
-    return kms ** 1.0 + (max(0.0, e_max - entropia) / e_max)
+
+    deficit_relativo = max(0.0, e_max - entropia) / e_max
+    return kms ** (1.0 + deficit_relativo)
 
 FUNCIONES_OBJETIVO = [
     fobj_ratio,
