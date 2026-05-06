@@ -479,7 +479,7 @@ def generar_tabla_global(diccionario_resultados):
                 kms = datos['kms']
                 entropia = datos['entropia']
                 fobj_name = datos.get('nombre_fobj', 'N/A').replace('fobj_', '')[:10]
-                fobj_val = datos['fobj']
+                fobj_val = datos.get('score_universal', datos['fobj'])
                 
                 fobj_str = f"{fobj_val:.4f}<br><span style='font-size:0.85em; font-style:italic; color:#555;'>({fobj_name})</span>"
                 

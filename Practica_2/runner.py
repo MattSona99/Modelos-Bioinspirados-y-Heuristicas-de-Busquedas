@@ -56,7 +56,7 @@ def ejecutar_analisis_cajas(caso_nombre="Caso 1", mejor_fobj_conocido=25.4):
     # Usamos fobj_ratio (o la que consideres estándar) para la comparativa estadística
     funcion_objetivo = fobj_ratio
 
-    print("Ejecutando algoritmos (5 semillas)... esto puede tardar un momento.\n")
+    print("Ejecutando algoritmos (5 semillas)...\n")
 
     for sem in SEMILLAS:
         # Extraer FOBJ de GRASP

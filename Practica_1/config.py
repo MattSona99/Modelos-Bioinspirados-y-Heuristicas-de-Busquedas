@@ -4,7 +4,10 @@ OBJETIVO = 0.50 # Proporción objetivo de llenado
 ESTACION_INICIO = 0 # Estación de inicio
 TOLERANCIA = 1 # Margen para considerar una estación "optima" y no visitarla
 
-# Seeds para reproducibilidad
+# Seeds originales de la Práctica 1
+SEMILLAS_P1 = [42, 123, 987, 555, 2024]
+
+# Seeds actualizadas (Práctica 2 — por indicación del profesor)
 SEMILLAS = [382941, 4192853, 27849102, 391048576, 1842910337]
 
 # Datos de los Escenarios (Casos)
