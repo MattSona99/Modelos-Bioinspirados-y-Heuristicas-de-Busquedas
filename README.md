@@ -1,6 +1,6 @@
 # Modelos Bioinspirados y Heurísticas de Búsqueda 🧬🔍
 
-Repositorio global de proyectos y prácticas desarrolladas para la asignatura **Modelos Bioinspirados y Heurísticas de Búsqueda**. 
+Repositorio global de proyectos y prácticas desarrolladas para la asignatura **Modelos Bioinspirados y Heurísticas de Búsqueda**.
 
 Este repositorio servirá como portafolio y registro de la evolución en la implementación de diferentes algoritmos de optimización, desde heurísticas constructivas y locales, hasta metaheurísticas complejas basadas en trayectorias o poblaciones.
 
@@ -10,7 +10,7 @@ Este repositorio servirá como portafolio y registro de la evolución en la impl
 
 A continuación se listan las prácticas desarrolladas durante el curso. Puedes acceder a la carpeta de cada práctica para ver su código fuente, documentación específica e instrucciones de ejecución.
 
-### [✅ Práctica 1: Algoritmos basados en Entornos y Trayectorias](./Practica%201)
+### [✅ Práctica 1: Algoritmos basados en Entornos y Trayectorias](./Practica_1)
 * **Objetivo:** Estudiar, implementar y comparar el funcionamiento de distintos Algoritmos de Búsqueda Aleatoria, Local, Enfriamiento Simulado y Búsqueda Tabú frente a un algoritmo base (Greedy).
 * **Problema a resolver:** Optimización operativa de las rutas de reubicación de una red de bicicletas en la ciudad de Santander. Se cuenta con un camión de capacidad limitada ($L=20$) que debe equilibrar la red, minimizando los kilómetros recorridos y optimizando el balanceo de las estaciones (Entropía).
 * **Algoritmos Implementados:**
@@ -18,7 +18,16 @@ A continuación se listan las prácticas desarrolladas durante el curso. Puedes 
   * Búsqueda Ciega: *Búsqueda Aleatoria*
   * Búsquedas Locales: *Primer Mejor* y *Mejor Vecino*
   * Metaheurísticas Avanzadas: *Enfriamiento Simulado* (Esquema de Cauchy) y *Búsqueda Tabú* (con memoria a largo/corto plazo y reinicializaciones).
-* 🔗 **[Ir a la documentación y código de la Práctica 1](./Practica%201)**
+* 🔗 **[Ir a la documentación y código de la Práctica 1](./Practica_1)**
+
+### [🚧 Práctica 2: Metaheurísticas Multi-arranque y Basadas en Entornos Variables](./Practica_2)
+* **Objetivo:** Implementar y comparar metaheurísticas avanzadas que extienden las búsquedas locales clásicas mediante mecanismos de diversificación (multi-arranque, perturbación, entornos variables), añadiendo además un análisis estadístico riguroso de Caja Blanca y Caja Negra (RPD, CV, Distancia de Hamming, profundidad de estancamiento).
+* **Problema a resolver:** El mismo problema de balanceo de la red de bicicletas de Santander, reutilizando la infraestructura de la Práctica 1 (`evaluar_ruta`, `fobj_ratio`, casos y semillas).
+* **Algoritmos Implementados:**
+  * *GRASP* (Greedy Randomized Adaptive Search Procedure) — construcción probabilística con RCL de tamaño fijo + Búsqueda Local Primer Mejor.
+  * *ILS* (Iterated Local Search) — BL + *mutación fuerte* sobre sub-lista del récord absoluto.
+  * *VNS* (Variable Neighborhood Search) — estructuras de entorno crecientes ($k=1..k_{max}$) con *shaking* y reset tras mejora.
+* 🔗 **[Ir a la documentación y código de la Práctica 2](./Practica_2)**
 
 ---
 
@@ -26,6 +35,7 @@ A continuación se listan las prácticas desarrolladas durante el curso. Puedes 
 
 * **Lenguaje:** Python 3.13+
 * **Entorno:** Visual Studio Code / Jupyter Notebooks
+* **Librerías principales:** `numpy`, `matplotlib`, `folium`, `ipython`
 
 ---
 *Desarrollado para el curso académico 2025/2026.*
